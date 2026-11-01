@@ -337,6 +337,18 @@ select.control {
   background: var(--danger-tint);
 }
 
+.btn-secondary {
+  height: 34px;
+  border-color: var(--field-border);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  border-color: var(--teal);
+  color: var(--teal);
+}
+
 .btn:focus-visible,
 .link-button:focus-visible {
   outline: 2px solid var(--teal);
@@ -483,6 +495,18 @@ td {
 
 tbody tr:hover {
   background: #fafaf8;
+}
+
+/* "Showing 200 of 750" and the Load more button, under the table */
+.table-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 20px;
+  border-top: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 13px;
 }
 
 /* Numbers line up on the right, with equal-width digits, as in a financial report */

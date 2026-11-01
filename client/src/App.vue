@@ -7,9 +7,11 @@ import ObservationTable from './components/ObservationTable.vue'
 
 const title = import.meta.env.VITE_APP_TITLE
 const options = ref({ categories: [], items: [], states: [], cities: [] })
-// The table shows only the newest observations, so reloading after each save or delete stays fast however many there
-// are (the graphs get their own grouped data from the server). The server also sends the total number
-const RECENT_LIMIT = 200
+// The table starts with the newest 200 observations and loads 200 more each time "Load more" is clicked, so reloads
+// after a save or delete stay fast however many there are (the graphs get their own grouped data from the server)
+const PAGE_SIZE = 200
+const rowLimit = ref(PAGE_SIZE)
+const loadingMore = ref(false)
 const observations = ref([])
 const observationTotal = ref(0)
 const errorMessage = ref('')
@@ -23,7 +25,7 @@ const selectedDate = ref([
 ].join('-'))
 
 async function loadObservations() {
-  const data = await getObservations(RECENT_LIMIT)
+  const data = await getObservations(rowLimit.value)
   observations.value = data.observations
   observationTotal.value = data.total
 }
@@ -35,6 +37,13 @@ async function reloadObservations() {
   } catch (error) {
     errorMessage.value = `Could not reload the observations (${error.message})`
   }
+}
+
+async function loadMoreObservations() {
+  loadingMore.value = true
+  rowLimit.value += PAGE_SIZE
+  await reloadObservations()
+  loadingMore.value = false
 }
 
 onMounted(async () => {
@@ -62,7 +71,13 @@ onMounted(async () => {
     <ObservationForm v-model:date="selectedDate" :options="options" @changed="reloadObservations" />
     <div class="results">
       <ObservationGraph v-model:date="selectedDate" :observations="observations" />
-      <ObservationTable :observations="observations" :total="observationTotal" :items="options.items" />
+      <ObservationTable
+        :observations="observations"
+        :total="observationTotal"
+        :items="options.items"
+        :loading-more="loadingMore"
+        @load-more="loadMoreObservations"
+      />
     </div>
   </main>
 </template>

@@ -291,6 +291,11 @@ The server and client READMEs were kept up to date step by step. At submission, 
 Also done 10/31/2026:
 - Every date label on the scatter chart shows the year on a second line ("Jun 20" over "2022"). The user found "year only under the first label" lopsided.
 - Disclosures says `design_sample.png` was made with Claude Design. Notes say it was tested with Docker only; the user doesn't need Option B tested.
+- **Load more:** the table opens with 200 rows; each click adds 200, using the existing `?limit=`. Reloads after a save or delete keep the expanded count. The heading shows just "750 total", and a footer says "Showing 200 of 750". Checked in headless Edge: 200 → 400 → 600 → 750, then the footer disappears.
+- **READMEs condensed** at the user's request:
+  - Main README: short Enhancements, Key decisions centered on architecture, a short notes section, and a one-line Disclosure.
+  - Server README: the options field table removed, and sections tightened.
+  - Client README: tidied.
 - Card headings wrap their count onto a second line on phones.
 
 Original plan for this step:
@@ -305,7 +310,15 @@ Original plan for this step:
 - `client/README.md`: the components added or changed, how state flows through `App.vue`, and the formatting rules.
 - Root `README.md`: add the missing "If a port is already in use" section (P22), and fill in **Enhancements** and **Disclosures**.
 
-### Step 13. Submission (Docker workflow)
+### Step 13. Submission (Docker workflow) ✅ Done 10/31/2026 (except the zip, which the user makes)
+- `test.db` restored from `backup_db/` and migrated again. Contents are identical to before (fingerprint `4773dc4e…`), with 750 rows and no test rows.
+- `requirements.txt` holds 14 exact pins from `pip freeze` in the Python 3.12.16 container.
+- Fresh run: `docker compose down -v`, then `up --build -d`. 43 server and 8 client tests pass, `npm ls` is clean, `test.db` was untouched, and the app was clicked through in headless Edge.
+- **Bug found and fixed in the final run:** switching bars → scatter left Plotly's guessed "category" axis type, so dates showed raw and tilted. Both charts now set their x-axis `type`.
+- No `.claude/` folder, and no secrets.
+- The user chose to leave `plan.md` and `.git` out of the zip, and to zip it themselves.
+
+Original plan for this step:
 - Python packages, written by the 3.12 container straight into the mounted folder (this avoids PowerShell's file-encoding defaults): `docker compose exec server sh -c "pip freeze > requirements.txt"`.
 - npm packages, only if any were added: `docker compose exec client npm install --save-exact <package>`, then `docker compose exec client npm ls --depth=0` (nothing `extraneous`).
 - Ship clean data: copy `backup_db/test.db` back over `server/test.db`, run `migrate.py` on it, then confirm 750 rows, one `AddedOn` value, and no test rows.

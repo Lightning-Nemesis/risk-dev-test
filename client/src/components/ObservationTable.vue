@@ -8,7 +8,10 @@ const props = defineProps({
   total: { type: Number, required: true },
   // Item names in the order of server/options.json, the same order the graph colors its items in
   items: { type: Array, required: true },
+  loadingMore: { type: Boolean, default: false },
 })
+// Asks App.vue for the next page of older observations
+defineEmits(['load-more'])
 
 // Each column's heading, how to show its values, and its style. Prices are right-aligned, as in a financial report
 const columns = [
@@ -34,10 +37,7 @@ function itemColor(item) {
     <header class="card-header">
       <h2 class="card-title">
         Recent observations
-        <span class="card-count">
-          {{ total.toLocaleString('en-US') }} total<template v-if="total > observations.length">
-            · showing the newest {{ observations.length.toLocaleString('en-US') }}</template>
-        </span>
+        <span class="card-count">{{ total.toLocaleString('en-US') }} total</span>
       </h2>
     </header>
     <div class="table-wrapper">
@@ -62,5 +62,11 @@ function itemColor(item) {
         </tbody>
       </table>
     </div>
+    <footer v-if="total > observations.length" class="table-footer">
+      <span>Showing {{ observations.length.toLocaleString('en-US') }} of {{ total.toLocaleString('en-US') }}</span>
+      <button type="button" class="btn btn-secondary" :disabled="loadingMore" @click="$emit('load-more')">
+        {{ loadingMore ? 'Loading…' : 'Load more' }}
+      </button>
+    </footer>
   </section>
 </template>

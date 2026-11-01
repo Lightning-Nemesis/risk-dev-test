@@ -11,30 +11,17 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:5173. The server must be running too, or the page shows an error instead of data.
-
-If port 5173 is busy, see "If a port is already in use" in the main README.
+Open http://localhost:5173. The server must be running too. If the port is busy, see "If a port is already in use" in the main README.
 
 ## Settings (`.env`)
 
 | Variable | Value | Used for |
 |---|---|---|
-| `API_URL` | `http://127.0.0.1:5001` | Where Vite forwards `/api` requests. Read in `vite.config.js` only, never sent to the browser. |
+| `API_URL` | `http://127.0.0.1:5001` | Where Vite forwards `/api` requests. Read only in `vite.config.js`, never sent to the browser |
 | `VITE_APP_TITLE` | `Price Observation Data Entry` | Page title and heading |
-| `VITE_CURRENCY` | `USD` | Currency for displaying prices (task 6). Display only: prices are not converted |
+| `VITE_CURRENCY` | `USD` | Currency prices are shown in. Display only: nothing is converted |
 
-Only variables that start with `VITE_` reach browser code, as `import.meta.env.VITE_...`. Restart `npm run dev` after editing `.env`.
-
-The drop-down choices aren't set here: they come from the server's `server/options.json` through `/api/options`. The form starts on the first category and state listed there.
-
-## Tests
-
-```bash
-npm test
-docker compose exec client npm test   # same, inside the running Docker container (from the project root)
-```
-
-The tests (`src/format.test.js`, run by Vitest) check how prices, dates and times are shown. They run in the Arizona time zone (UTC-7), where the common mistake of reading `2022-06-29` with `new Date()` would show June 28, so they would catch that.
+Only variables that start with `VITE_` reach the browser. Restart `npm run dev` after editing `.env`. The drop-down choices aren't set here; they come from the server (`server/options.json`).
 
 ## How the client reaches the server
 
@@ -42,7 +29,18 @@ The tests (`src/format.test.js`, run by Vitest) check how prices, dates and time
 Browser -> Vite dev server (localhost:5173) -> Flask API (API_URL)
 ```
 
-The browser only ever talks to `localhost:5173`. Requests to `/api/...` are forwarded to the Flask API, so every request in `src/api.js` uses a path starting with `/api`.
+The browser only talks to `localhost:5173`. Vite forwards requests to `/api/...` to the Flask API, so every request in `src/api.js` uses a path starting with `/api`.
+
+The client fetches results and presents them. The server does the filtering, grouping and averaging; the client adds formatting, styling and interaction.
+
+## Tests
+
+```bash
+npm test
+docker compose exec client npm test   # in Docker, from the project root
+```
+
+They check how prices, dates and times are shown, in a US time zone where reading `2022-06-29` with `new Date()` would show June 28.
 
 ## Adding packages
 
@@ -52,14 +50,14 @@ Install packages with `npm install --save-exact <package>`. This records the exa
 
 | File | Purpose |
 |---|---|
-| `index.html` | Page shell, and the Inter and Source Serif 4 fonts from Google Fonts (without internet, the page falls back to system fonts) |
+| `index.html` | Page shell; loads the Inter and Source Serif 4 fonts from Google Fonts |
 | `vite.config.js` | Dev server settings and the `/api` forwarding |
 | `src/main.js` | Starts the Vue app |
-| `src/App.vue` | Page layout; loads the data |
+| `src/App.vue` | Page layout. Loads the data, and shares the form's Date with the graph |
 | `src/api.js` | Requests to the Flask API |
-| `src/format.js` | How prices, dates and times are shown: currency from `VITE_CURRENCY`, dates as "Jun 29, 2022", Added On as "Jun 29, 12:47 PM" in the viewer's time zone |
-| `src/format.test.js` | Tests for `format.js` (`npm test`) |
-| `src/theme.js` | Series colors shared by the graph and the table, so each category and item keeps one color everywhere |
-| `src/components/` | `ObservationForm`, `ObservationGraph` and `ObservationTable` |
-| `src/assets/` | Styles: the design's colors, fonts and shapes as CSS variables at the top of `main.css`, then the layout from `design_sample.png` |
+| `src/components/` | `ObservationForm` (save and delete), `ObservationGraph` (both charts), `ObservationTable` (newest rows, with "Load more") |
+| `src/format.js` | Prices, dates and times for display |
+| `src/theme.js` | Series colors shared by the graph and the table |
+| `src/assets/main.css` | Styles, with the design's colors and fonts as CSS variables at the top |
+| `src/format.test.js` | Tests for `format.js` |
 | `Dockerfile` | Container image for the client |

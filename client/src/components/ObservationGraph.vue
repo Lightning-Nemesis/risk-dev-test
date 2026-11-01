@@ -96,7 +96,9 @@ function drawPricesOverTime(series) {
     // Every date label shows the day and, on a second line, the year ("Jun 20" over "2022"), so all labels look alike
     // and stay narrow enough not to tilt. Up to 12 labels: every day across the sample data's 10 days, fewer over
     // longer ranges or narrow screens
-    xaxis: { ...categoryAxis, tickformat: '%b %-d<br>%Y', nticks: isNarrow() ? 5 : 12 },
+    // The axis type is set, not guessed: Plotly.react would otherwise keep the bar chart's "category" type after a
+    // switch back, and show raw, tilted date strings
+    xaxis: { ...categoryAxis, type: 'date', tickformat: '%b %-d<br>%Y', nticks: isNarrow() ? 5 : 12 },
     yaxis: priceAxis,
     legend: legend('Item'),
   }
@@ -124,7 +126,7 @@ function drawAverageByCity(data) {
     bargap: 0.3,
     bargroupgap: 0.08,
     barcornerradius: 3,
-    xaxis: categoryAxis,
+    xaxis: { ...categoryAxis, type: 'category' },
     yaxis: priceAxis,
     legend: legend('City'),
   }
