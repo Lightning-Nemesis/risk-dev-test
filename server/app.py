@@ -5,6 +5,7 @@ Start it with: python app.py  (settings come from .env)
 # Built-ins
 import datetime
 import json
+import logging
 import math
 import os
 # 3rd-party
@@ -29,6 +30,8 @@ MAX_PRICE = float(os.getenv('MAX_PRICE', '10000'))
 FUTURE_DATE_SLACK = datetime.timedelta(days=1)
 
 app = Flask(__name__)
+# Log INFO messages (such as the record of each delete) even when FLASK_DEBUG is off
+app.logger.setLevel(logging.INFO)
 
 
 class InvalidInput(Exception):
@@ -137,15 +140,15 @@ def clean_price(text, errors):
     return price
 
 
-def clean_count(value, errors):
-    """Parse how many observations to delete: a whole number of 1 or more."""
+def clean_whole_number(value, errors, field, what):
+    """Parse a whole number of 1 or more, such as how many observations to delete."""
     try:
-        count = int(clean_text(value))
+        number = int(clean_text(value))
     except ValueError:
-        count = 0
-    if count < 1:
-        errors['count'] = 'Enter how many observations to delete, as a whole number of 1 or more'
-    return count
+        number = 0
+    if number < 1:
+        errors[field] = f'Enter {what} as a whole number of 1 or more'
+    return number
 
 
 @app.get('/api/options')
@@ -162,12 +165,22 @@ def get_options():
 
 @app.get('/api/observations')
 def get_observations():
-    """All observations, newest first, one JSON object per row with a unique id."""
-    rows = Observation.table_df()
+    """Observations, newest first, each with a unique id, plus the total number of observations.
+
+    ?limit=N returns only the newest N rows, so the table's response stays small however many observations there are.
+    Without it, every row is returned.
+    """
+    errors = {}
+    limit = None
+    if 'limit' in request.args:
+        limit = clean_whole_number(request.args.get('limit'), errors, 'limit', 'how many rows to return')
+    if errors:
+        raise InvalidInput(errors)
+    rows = Observation.table_df(limit)
     # SQLite's current_timestamp is UTC, written 'YYYY-MM-DD HH:MM:SS'. Send it as ISO 8601 with a Z, so the browser
     # knows it's UTC and shows it in the viewer's own time zone
     rows['AddedOn'] = rows['AddedOn'].str.replace(' ', 'T') + 'Z'
-    return jsonify(rows.to_dict('records'))
+    return jsonify(total=Observation.row_count(), observations=rows.to_dict('records'))
 
 
 @app.get('/api/charts/prices-over-time')
@@ -232,7 +245,7 @@ def delete_observations():
     """
     errors = {}
     match = clean_observation(request.args, errors, price_required=False)
-    count = clean_count(request.args.get('count'), errors)
+    count = clean_whole_number(request.args.get('count'), errors, 'count', 'how many observations to delete')
     most_recent_first = request.args.get('mostRecentFirst')
     if most_recent_first not in ('true', 'false'):
         errors['mostRecentFirst'] = 'mostRecentFirst must be true or false'
@@ -245,10 +258,16 @@ def delete_observations():
     deleted = Observation().delete_matching(n_to_delete=count,
                                             order_to_delete_in={'AddedOn': most_recent_first == 'false'},
                                             **match)
+    # Deleting can't be undone, so every delete is recorded in the server log
+    criteria = ', '.join(f'{column}={value}' for column, value in match.items())
+    order = 'most recent' if most_recent_first == 'true' else 'oldest'
+    app.logger.info('Deleted %d of %d requested observations matching %s, %s first', deleted, count, criteria, order)
     return jsonify(deleted=deleted, requested=count)
 
 
 if __name__ == '__main__':
     app.run(host=os.getenv('FLASK_RUN_HOST', '127.0.0.1'),
             port=int(os.getenv('FLASK_RUN_PORT', '5001')),
-            debug=os.getenv('FLASK_DEBUG') == '1')
+            debug=os.getenv('FLASK_DEBUG') == '1',
+            # With FLASK_DEBUG=1 the server restarts on code changes; this makes it restart on options edits too
+            extra_files=[cpi.options_file])

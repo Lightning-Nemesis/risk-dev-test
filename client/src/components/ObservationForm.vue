@@ -11,18 +11,22 @@ const emit = defineEmits(['changed'])
 // The Date field lives in App.vue, because the graph uses it too ("Average Item Price by City" shows that date)
 const date = defineModel('date', { type: String, required: true })
 
-const form = reactive({
-  Category: 'Food',
-  Item: 'USDA Grade-A eggs, Dozen',
-  Price: '',
-  State: 'Texas',
-  City: 'Dallas',
-})
+// Starts empty: when the options arrive, the form picks the first category and state in server/options.json, and the
+// watchers below then pick their first item and city
+const form = reactive({ Category: '', Item: '', Price: '', State: '', City: '' })
 
 const deleteSettings = reactive({
   count: 1,
   mostRecentFirst: true,
 })
+
+watch(
+  () => props.options,
+  (options) => {
+    if (!options.categories.includes(form.Category)) form.Category = options.categories[0] ?? ''
+    if (!options.states.includes(form.State)) form.State = options.states[0] ?? ''
+  },
+)
 
 // Only offer the items in the chosen category and the cities in the chosen state
 const itemsInCategory = computed(() => props.options.category_items?.[form.Category] ?? [])

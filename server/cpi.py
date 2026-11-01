@@ -3,9 +3,10 @@ Library for modeling prices for various objects
 """
 # Built-ins
 import datetime
-import functools
 import itertools
+import json
 import logging
+import os
 import random
 import sqlite3
 from typing import Optional
@@ -16,6 +17,9 @@ import pandas as pd
 
 logger = logging.getLogger(__name__)
 db_file = 'test.db'
+# The editable list of categories with their items, and states with their cities (see "Editing the options" in
+# server/README.md). It's read when this module is imported; Observation.load_options() can read another file
+options_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'options.json')
 
 
 class Observation:
@@ -26,49 +30,108 @@ class Observation:
     Category: Optional[str] = None
     State: Optional[str] = None
     City: Optional[str] = None
-    AddedOn: datetime.datetime = datetime.datetime.now()
+    AddedOn: Optional[datetime.datetime] = None  # the database sets it (current_timestamp, UTC) when a row is written
 
     # Columns of the Observation table. Only these names are ever put into SQL text built from caller input
     columns = ('Date', 'Item', 'Price', 'Category', 'State', 'City', 'AddedOn')
 
-    category_item_map = {'Food': ['USDA Grade-A eggs, Dozen'],
-                         'Fuel': ['Regular Gasoline, Gallon'],
-                         'Clothing': ['Wool Socks, Pair']}
-    state_city_map = {'California': ['Los Angeles', 'San Francisco'],
-                      'New York': ['New York City'],
-                      'Texas': ['Austin', 'Dallas']}
-    item_base_price = {'USDA Grade-A eggs, Dozen': 2.99,
-                       'Regular Gasoline, Gallon': 4.65,
-                       'Wool Socks, Pair': 21.95}
-    state_price_mu_std = {'California': (1.5, 0.15),
-                          'New York': (1.75, 0.25),
-                          'Texas': (1, 0.10)}
+    # Filled from the options file by load_options(): the items in each category and the cities in each state, plus
+    # the prices used only to generate sample data (an item's base price; a state's price level and spread)
+    category_item_map = {}
+    state_city_map = {}
+    item_base_price = {}
+    state_price_mu_std = {}
 
     @classmethod
-    @functools.lru_cache(maxsize=None)
+    def load_options(cls, path: str):
+        """Read the options file (JSON) and replace the categories, items, states and cities with its contents.
+
+        Raises ValueError naming the first problem, such as a missing price or a city listed twice, so a bad edit stops
+        the server at startup with a clear message instead of failing later.
+        """
+        try:
+            with open(path, encoding='utf-8') as file:
+                options = json.load(file)
+        except json.JSONDecodeError as error:
+            raise ValueError(f'{path} is not valid JSON: {error}') from error
+
+        def check(condition, where, problem):
+            if not condition:
+                raise ValueError(f'{path}: {where} {problem}')
+
+        def is_name(value):  # text that isn't blank and has no spaces at either end (the API trims what users send)
+            return isinstance(value, str) and value != '' and value == value.strip()
+
+        def is_number(value):  # True and False count as numbers in Python, so rule them out
+            return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+        check(isinstance(options, dict), 'the file', 'must hold one JSON object with "categories" and "states"')
+        categories, states = options.get('categories'), options.get('states')
+        check(isinstance(categories, list) and categories, '"categories"', 'must be a non-empty list')
+        check(isinstance(states, list) and states, '"states"', 'must be a non-empty list')
+
+        category_items, base_prices = {}, {}
+        for i, category in enumerate(categories):
+            where = f'categories[{i}]'
+            check(isinstance(category, dict) and is_name(category.get('name')), where, 'needs a "name"')
+            check(category['name'] not in category_items, where, f'repeats the category {category["name"]!r}')
+            items = category.get('items')
+            check(isinstance(items, list) and items, where, 'needs a non-empty "items" list')
+            category_items[category['name']] = []
+            for j, item in enumerate(items):
+                where = f'categories[{i}].items[{j}]'
+                check(isinstance(item, dict) and is_name(item.get('name')), where, 'needs a "name"')
+                check(item['name'] not in base_prices, where, f'repeats the item {item["name"]!r}')
+                price = item.get('sample_base_price')
+                check(is_number(price) and price > 0, where, 'needs a "sample_base_price" above 0')
+                category_items[category['name']].append(item['name'])
+                base_prices[item['name']] = price
+
+        state_cities, price_levels = {}, {}
+        for i, state in enumerate(states):
+            where = f'states[{i}]'
+            check(isinstance(state, dict) and is_name(state.get('name')), where, 'needs a "name"')
+            check(state['name'] not in state_cities, where, f'repeats the state {state["name"]!r}')
+            cities = state.get('cities')
+            check(isinstance(cities, list) and cities and all(is_name(city) for city in cities), where,
+                  'needs a non-empty "cities" list of names')
+            for city in cities:
+                # The graphs group by city name, so the same name in two states would merge their prices
+                listed = any(city in names for names in state_cities.values()) or cities.count(city) > 1
+                check(not listed, where, f'repeats the city {city!r}: each city name can appear only once')
+            level, spread = state.get('sample_price_level'), state.get('sample_price_spread')
+            check(is_number(level) and level > 0, where, 'needs a "sample_price_level" above 0')
+            check(is_number(spread) and spread >= 0, where, 'needs a "sample_price_spread" of 0 or more')
+            state_cities[state['name']] = list(cities)
+            price_levels[state['name']] = (level, spread)
+
+        cls.category_item_map, cls.item_base_price = category_items, base_prices
+        cls.state_city_map, cls.state_price_mu_std = state_cities, price_levels
+
+    # Not cached, because load_options() can replace the lists they come from
+    @classmethod
     def available_items(cls):
         return list(itertools.chain.from_iterable(cls.category_item_map.values()))
 
     @classmethod
-    @functools.lru_cache(maxsize=None)
     def available_categories(cls):
         return list(cls.category_item_map.keys())
 
     @classmethod
-    @functools.lru_cache(maxsize=None)
     def available_states(cls):
         return list(cls.state_city_map.keys())
 
     @classmethod
-    @functools.lru_cache(maxsize=None)
     def available_cities(cls):
         return list(itertools.chain.from_iterable(cls.state_city_map.values()))
 
     def __init__(self, **kwargs):
         for k, v in kwargs.items():
-            try:
+            # setattr accepts any name, so check it against the table's columns: a typo such as Prise=3.99 is reported
+            # and ignored, instead of being stored silently while Price stays empty
+            if k in self.columns:
                 setattr(self, k, v)
-            except AttributeError:
+            else:
                 logger.warning(f'{k} is not a valid attribute of Observation. Ignoring...')
 
     def write(self):
@@ -124,11 +187,22 @@ class Observation:
         return df
 
     @staticmethod
-    def table_df() -> pd.DataFrame:
+    def table_df(limit: Optional[int] = None) -> pd.DataFrame:
+        """All observations, or only the newest `limit` of them."""
         with sqlite3.connect(db_file) as con:
             # Newest first, so a new row is on top. rowid is SQLite's own row number: a unique id for each row
             sql = 'select rowid as id, * from Observation order by AddedOn desc, rowid desc'
-            return pd.read_sql(sql, con)
+            params = []
+            if limit is not None:
+                sql += ' limit ?'
+                params.append(limit)
+            return pd.read_sql(sql, con, params=params)
+
+    @staticmethod
+    def row_count() -> int:
+        """How many observations there are."""
+        with sqlite3.connect(db_file) as con:
+            return con.execute('select count(*) from Observation').fetchone()[0]
 
     @staticmethod
     def price_counts() -> pd.DataFrame:
@@ -190,6 +264,11 @@ class Observation:
                f'(SELECT rowid FROM Observation WHERE {where} ORDER BY {", ".join(order_by)} LIMIT ?)')
         with sqlite3.connect(db_file) as con:
             return con.execute(sql, [*kwargs.values(), n_to_delete]).rowcount
+
+
+# Read the options as soon as this module is imported, so everything that uses Observation (the API, migrate.py and
+# the tests) has them
+Observation.load_options(options_file)
 
 
 if __name__ == '__main__':

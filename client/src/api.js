@@ -20,8 +20,9 @@ export function getOptions() {
   return request('/api/options')
 }
 
-export function getObservations() {
-  return request('/api/observations')
+// The newest `limit` observations and the total number: { total, observations }
+export function getObservations(limit) {
+  return request(`/api/observations?${new URLSearchParams({ limit })}`)
 }
 
 // One series per item for the "Item Prices Over Time" graph: { item, dates, prices, counts }

@@ -2,8 +2,12 @@
 Tests for cpi.py
 """
 # Built-ins
+import copy
 import datetime
+import json
+import os
 import sqlite3
+import tempfile
 import unittest
 # 3rd-party
 # Internal
@@ -20,6 +24,22 @@ class TestObservation(TempDatabaseMixin, unittest.TestCase):
         obj = Observation(**inputs)
         self.assertEqual(obj.Date, datetime.date.today())
         self.assertEqual(obj.Category, 'Food')
+
+    def test_init_ignores_unknown_fields_with_a_warning(self):
+        with self.assertLogs('cpi', 'WARNING') as logs:
+            obj = Observation(Prise=3.99)  # a typo of Price
+        self.assertIn('Prise is not a valid attribute', logs.output[0])
+        self.assertFalse(hasattr(obj, 'Prise'))
+        self.assertIsNone(obj.Price)
+
+    def test_added_on_comes_from_the_database(self):
+        self.assertIsNone(Observation().AddedOn)  # not a fixed time from when the module was loaded
+        Observation(Date=datetime.date(2026, 10, 31), Item=self.test_item, Price=1.0, Category='Food', State='Texas',
+                    City='Dallas').write()
+        df = Observation.table_df()
+        added_on = datetime.datetime.fromisoformat(df.loc[df['Item'] == self.test_item, 'AddedOn'].iloc[0])
+        utc_now = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+        self.assertLess(abs(utc_now - added_on), datetime.timedelta(minutes=1))  # stamped in UTC as the row was saved
 
     def test_write(self):
         # Quotes and SQL inside a value must be stored as plain text, never run as SQL
@@ -130,6 +150,65 @@ class TestObservation(TempDatabaseMixin, unittest.TestCase):
                 with self.assertRaises(ValueError):
                     Observation().delete_matching(**arguments)
         self.assertEqual(len(Observation.table_df().index), rows_before)  # nothing was deleted
+
+
+class TestLoadOptions(unittest.TestCase):
+
+    # A small, valid options file: one category with one item, one state with one city
+    valid = {'categories': [{'name': 'Dairy', 'items': [{'name': 'Whole Milk, Gallon', 'sample_base_price': 3.49}]}],
+             'states': [{'name': 'Illinois', 'cities': ['Chicago'], 'sample_price_level': 1.2,
+                         'sample_price_spread': 0.1}]}
+
+    def tearDown(self):
+        Observation.load_options(cpi.options_file)  # put the real options back
+
+    def load(self, options):
+        """Write options (a dict, or raw text) to a temporary file and load it."""
+        with tempfile.TemporaryDirectory() as folder:
+            path = os.path.join(folder, 'options.json')
+            with open(path, 'w', encoding='utf-8') as file:
+                file.write(options if isinstance(options, str) else json.dumps(options))
+            Observation.load_options(path)
+
+    def test_the_real_options_file_is_valid(self):
+        Observation.load_options(cpi.options_file)
+        self.assertTrue(Observation.available_categories())
+        self.assertTrue(Observation.available_cities())
+
+    def test_new_categories_items_states_and_cities_are_used_everywhere(self):
+        self.load(self.valid)
+        self.assertEqual(Observation.available_categories(), ['Dairy'])
+        self.assertEqual(Observation.category_item_map, {'Dairy': ['Whole Milk, Gallon']})
+        self.assertEqual(Observation.state_city_map, {'Illinois': ['Chicago']})
+        # The sample prices let the sample-data generator make rows for the new item and state
+        sample = Observation.get_test_data()
+        self.assertEqual(set(sample['Item']), {'Whole Milk, Gallon'})
+        self.assertEqual(set(sample['City']), {'Chicago'})
+
+    def test_mistakes_are_reported_clearly(self):
+        def changed(change):
+            options = copy.deepcopy(self.valid)
+            change(options)
+            return options
+
+        mistakes = {
+            'not valid JSON': '{"categories": [',
+            'needs a non-empty "items" list': changed(lambda o: o['categories'][0].update(items=[])),
+            'needs a "sample_base_price" above 0': changed(
+                lambda o: o['categories'][0]['items'][0].update(sample_base_price=0)),
+            "repeats the item 'Whole Milk, Gallon'": changed(lambda o: o['categories'].append(
+                {'name': 'Drinks', 'items': [{'name': 'Whole Milk, Gallon', 'sample_base_price': 3}]})),
+            "repeats the city 'Chicago'": changed(lambda o: o['states'].append(
+                {'name': 'Ohio', 'cities': ['Chicago'], 'sample_price_level': 1, 'sample_price_spread': 0.1})),
+            'needs a "name"': changed(lambda o: o['states'][0].update(name=' Illinois ')),  # spaces at the ends
+            'needs a "sample_price_spread" of 0 or more': changed(
+                lambda o: o['states'][0].update(sample_price_spread=-0.1)),
+            '"states" must be a non-empty list': changed(lambda o: o.pop('states')),
+        }
+        for message, options in mistakes.items():
+            with self.subTest(message):
+                with self.assertRaisesRegex(ValueError, message.replace('(', r'\(')):
+                    self.load(options)
 
 
 if __name__ == '__main__':

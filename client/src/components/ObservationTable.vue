@@ -3,10 +3,11 @@ import { formatDate, formatDateTime, formatPrice } from '../format.js'
 import { SERIES_COLORS } from '../theme.js'
 
 const props = defineProps({
+  // The newest observations, and how many there are in all (there can be more than the table shows)
   observations: { type: Array, required: true },
-  // Category names in the server's fixed order. Each category has one item, in the same order as the graph's
-  // items, so a category's dot here matches its item's color in the graph
-  categories: { type: Array, required: true },
+  total: { type: Number, required: true },
+  // Item names in the order of server/options.json, the same order the graph colors its items in
+  items: { type: Array, required: true },
 })
 
 // Each column's heading, how to show its values, and its style. Prices are right-aligned, as in a financial report
@@ -20,8 +21,10 @@ const columns = [
   { key: 'AddedOn', label: 'Added On', format: formatDateTime, class: 'muted' },
 ]
 
-function categoryColor(category) {
-  const index = props.categories.indexOf(category)
+// The dot beside each category is the row's item color in the graph, so it still matches when a category has
+// several items. Items no longer in the options file get a gray dot
+function itemColor(item) {
+  const index = props.items.indexOf(item)
   return index === -1 ? 'var(--text-muted)' : SERIES_COLORS[index % SERIES_COLORS.length]
 }
 </script>
@@ -31,7 +34,10 @@ function categoryColor(category) {
     <header class="card-header">
       <h2 class="card-title">
         Recent observations
-        <span class="card-count">{{ observations.length.toLocaleString('en-US') }} total</span>
+        <span class="card-count">
+          {{ total.toLocaleString('en-US') }} total<template v-if="total > observations.length">
+            · showing the newest {{ observations.length.toLocaleString('en-US') }}</template>
+        </span>
       </h2>
     </header>
     <div class="table-wrapper">
@@ -47,7 +53,7 @@ function categoryColor(category) {
               <span
                 v-if="column.key === 'Category'"
                 class="dot"
-                :style="{ background: categoryColor(row.Category) }"
+                :style="{ background: itemColor(row.Item) }"
                 aria-hidden="true"
               ></span>
               {{ column.format ? column.format(row[column.key]) : row[column.key] }}

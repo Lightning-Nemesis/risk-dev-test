@@ -25,6 +25,17 @@ If port 5173 is busy, see "If a port is already in use" in the main README.
 
 Only variables that start with `VITE_` reach browser code, as `import.meta.env.VITE_...`. Restart `npm run dev` after editing `.env`.
 
+The drop-down choices aren't set here: they come from the server's `server/options.json` through `/api/options`. The form starts on the first category and state listed there.
+
+## Tests
+
+```bash
+npm test
+docker compose exec client npm test   # same, inside the running Docker container (from the project root)
+```
+
+The tests (`src/format.test.js`, run by Vitest) check how prices, dates and times are shown. They run in the Arizona time zone (UTC-7), where the common mistake of reading `2022-06-29` with `new Date()` would show June 28, so they would catch that.
+
 ## How the client reaches the server
 
 ```
@@ -47,6 +58,7 @@ Install packages with `npm install --save-exact <package>`. This records the exa
 | `src/App.vue` | Page layout; loads the data |
 | `src/api.js` | Requests to the Flask API |
 | `src/format.js` | How prices, dates and times are shown: currency from `VITE_CURRENCY`, dates as "Jun 29, 2022", Added On as "Jun 29, 12:47 PM" in the viewer's time zone |
+| `src/format.test.js` | Tests for `format.js` (`npm test`) |
 | `src/theme.js` | Series colors shared by the graph and the table, so each category and item keeps one color everywhere |
 | `src/components/` | `ObservationForm`, `ObservationGraph` and `ObservationTable` |
 | `src/assets/` | Styles: the design's colors, fonts and shapes as CSS variables at the top of `main.css`, then the layout from `design_sample.png` |

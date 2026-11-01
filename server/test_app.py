@@ -3,14 +3,17 @@ Tests for app.py
 """
 # Built-ins
 import datetime
+import json
+import os
 import re
+import tempfile
 import unittest
 from unittest import mock
 # 3rd-party
 # Internal
 from app import app
 from cpi import Observation
-from temp_database import TempDatabaseMixin
+from temp_database import TEST_OPTIONS_FILE, TempDatabaseMixin
 
 
 class TestErrorResponses(unittest.TestCase):
@@ -39,13 +42,61 @@ class TestErrorResponses(unittest.TestCase):
         self.assertNotIn('secret detail', response.get_data(as_text=True))
 
 
+class TestOptionsFile(TempDatabaseMixin, unittest.TestCase):
+
+    def test_a_category_added_to_the_options_file_can_be_used(self):
+        with open(TEST_OPTIONS_FILE, encoding='utf-8') as file:
+            options = json.load(file)
+        options['categories'].append(
+            {'name': 'Dairy', 'items': [{'name': 'Whole Milk, Gallon', 'sample_base_price': 3.49}]})
+        with tempfile.TemporaryDirectory() as folder:
+            path = os.path.join(folder, 'options.json')
+            with open(path, 'w', encoding='utf-8') as file:
+                json.dump(options, file)
+            Observation.load_options(path)
+        client = app.test_client()
+
+        offered = client.get('/api/options').get_json()
+        self.assertIn('Dairy', offered['categories'])
+        self.assertEqual(offered['category_items']['Dairy'], ['Whole Milk, Gallon'])
+        response = client.post('/api/observations', json={'Date': '2020-01-15', 'Category': 'Dairy',
+                                                          'Item': 'Whole Milk, Gallon', 'Price': '3.79',
+                                                          'State': 'Texas', 'City': 'Dallas'})
+        self.assertEqual(response.status_code, 201)
+        series = client.get('/api/charts/prices-over-time').get_json()
+        self.assertIn('Whole Milk, Gallon', [s['item'] for s in series])
+
+
 class TestListObservations(TempDatabaseMixin, unittest.TestCase):
 
+    def setUp(self):
+        super().setUp()
+        self.client = app.test_client()
+
     def test_rows_have_an_id_and_a_utc_added_on(self):
-        rows = app.test_client().get('/api/observations').get_json()
+        data = self.client.get('/api/observations').get_json()
+        rows = data['observations']
+        self.assertEqual(data['total'], len(rows))  # no limit: every row
         self.assertEqual(len({row['id'] for row in rows}), len(rows))  # a unique id per row, for the table
         # ISO 8601 with Z (UTC), so browsers convert it to the viewer's own time zone
         self.assertTrue(all(re.fullmatch(r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z', row['AddedOn']) for row in rows))
+
+    def test_limit_returns_the_newest_rows_and_the_total(self):
+        total_before = self.client.get('/api/observations').get_json()['total']
+        for price in ('1.11', '2.22'):  # saved in this order, so 2.22 is the newest
+            self.client.post('/api/observations', json={'Date': '2020-01-15', 'Category': 'Food',
+                                                        'Item': 'USDA Grade-A eggs, Dozen', 'Price': price,
+                                                        'State': 'Texas', 'City': 'Dallas'})
+        data = self.client.get('/api/observations', query_string={'limit': '2'}).get_json()
+        self.assertEqual(data['total'], total_before + 2)
+        self.assertEqual([row['Price'] for row in data['observations']], [2.22, 1.11])
+
+    def test_rejects_an_invalid_limit(self):
+        for limit in ['0', '-1', '1.5', 'abc', '']:
+            with self.subTest(limit=limit):
+                response = self.client.get('/api/observations', query_string={'limit': limit})
+                self.assertEqual(response.status_code, 400)
+                self.assertIn('limit', response.get_json()['fields'])
 
 
 class TestSaveObservation(TempDatabaseMixin, unittest.TestCase):
@@ -62,14 +113,14 @@ class TestSaveObservation(TempDatabaseMixin, unittest.TestCase):
         return self.client.post('/api/observations', json={**self.valid, **changes})
 
     def rows_on_test_date(self):
-        rows = self.client.get('/api/observations').get_json()
+        rows = self.client.get('/api/observations').get_json()['observations']
         return [row for row in rows if row['Date'] == self.valid['Date']]
 
     def test_save_valid_observation(self):
         response = self.save()
         self.assertEqual(response.status_code, 201)
         self.assertEqual(response.get_json()['Price'], 4.66)  # rounded to the cent
-        newest = self.client.get('/api/observations').get_json()[0]  # the newest row comes first
+        newest = self.client.get('/api/observations').get_json()['observations'][0]  # the newest row comes first
         self.assertEqual((newest['Date'], newest['Item'], newest['Price'], newest['City']),
                          ('2020-01-15', 'Regular Gasoline, Gallon', 4.66, 'Austin'))
 
@@ -136,8 +187,8 @@ class TestPricesOverTime(TempDatabaseMixin, unittest.TestCase):
 
     def test_every_observation_is_counted_once(self):
         series = self.client.get('/api/charts/prices-over-time').get_json()
-        observations = self.client.get('/api/observations').get_json()
-        self.assertEqual(sum(sum(s['counts']) for s in series), len(observations))
+        total = self.client.get('/api/observations').get_json()['total']
+        self.assertEqual(sum(sum(s['counts']) for s in series), total)
 
 
 class TestAveragePriceByCity(TempDatabaseMixin, unittest.TestCase):
@@ -170,7 +221,7 @@ class TestAveragePriceByCity(TempDatabaseMixin, unittest.TestCase):
     def test_date_without_observations_points_to_the_latest_date(self):
         data = self.get('2019-01-01').get_json()
         self.assertTrue(all(count == 0 for s in data['series'] for count in s['counts']))
-        latest = max(row['Date'] for row in self.client.get('/api/observations').get_json())
+        latest = max(row['Date'] for row in self.client.get('/api/observations').get_json()['observations'])
         self.assertEqual(data['latest_date'], latest)
 
     def test_rejects_an_invalid_date(self):
@@ -198,7 +249,7 @@ class TestDeleteObservations(TempDatabaseMixin, unittest.TestCase):
         return self.client.delete('/api/observations', query_string=query)
 
     def remaining_prices(self):
-        rows = self.client.get('/api/observations').get_json()
+        rows = self.client.get('/api/observations').get_json()['observations']
         return sorted(row['Price'] for row in rows if row['Date'] == self.match['Date'])
 
     def test_delete_most_recent_first(self):
@@ -215,9 +266,15 @@ class TestDeleteObservations(TempDatabaseMixin, unittest.TestCase):
         self.assertEqual(self.remaining_prices(), [1.11, 3.33])
 
     def test_delete_more_than_match_touches_no_other_rows(self):
-        total_before = len(self.client.get('/api/observations').get_json())
+        total_before = self.client.get('/api/observations').get_json()['total']
         self.assertEqual(self.delete(count='10').get_json(), {'deleted': 3, 'requested': 10})
-        self.assertEqual(len(self.client.get('/api/observations').get_json()), total_before - 3)
+        self.assertEqual(self.client.get('/api/observations').get_json()['total'], total_before - 3)
+
+    def test_every_delete_is_logged(self):
+        with self.assertLogs(app.logger, 'INFO') as logs:
+            self.delete(count='2')
+        self.assertIn('Deleted 2 of 2 requested observations matching Date=2020-01-15, Category=Food, '
+                      'Item=USDA Grade-A eggs, Dozen, State=Texas, City=Dallas, most recent first', logs.output[0])
 
     def test_delete_rejects_invalid_values(self):
         invalid_values = [('count', '0'), ('count', '-1'), ('count', '1.5'), ('count', 'abc'), ('count', ''),

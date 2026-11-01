@@ -7,7 +7,11 @@ import ObservationTable from './components/ObservationTable.vue'
 
 const title = import.meta.env.VITE_APP_TITLE
 const options = ref({ categories: [], items: [], states: [], cities: [] })
+// The table shows only the newest observations, so reloading after each save or delete stays fast however many there
+// are (the graphs get their own grouped data from the server). The server also sends the total number
+const RECENT_LIMIT = 200
 const observations = ref([])
+const observationTotal = ref(0)
 const errorMessage = ref('')
 // The form's Date field, shared with the graph ("Average Item Price by City" shows that date). Starts as today
 // in the browser's time zone, formatted YYYY-MM-DD for <input type="date">
@@ -19,7 +23,9 @@ const selectedDate = ref([
 ].join('-'))
 
 async function loadObservations() {
-  observations.value = await getObservations()
+  const data = await getObservations(RECENT_LIMIT)
+  observations.value = data.observations
+  observationTotal.value = data.total
 }
 
 // After the form saves or deletes observations, reload them so the table and graph show the change
@@ -56,7 +62,7 @@ onMounted(async () => {
     <ObservationForm v-model:date="selectedDate" :options="options" @changed="reloadObservations" />
     <div class="results">
       <ObservationGraph v-model:date="selectedDate" :observations="observations" />
-      <ObservationTable :observations="observations" :categories="options.categories" />
+      <ObservationTable :observations="observations" :total="observationTotal" :items="options.items" />
     </div>
   </main>
 </template>

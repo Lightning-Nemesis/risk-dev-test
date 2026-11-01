@@ -222,11 +222,48 @@ Result:
 - The table shows `$20.59` and `06/29/2022` (not `06/28/2022`).
 - Set `VITE_CURRENCY=EUR`, run `docker compose restart client`, and `€` appears. Then set it back to `USD`.
 
-### Step 10. Cleanups (P19, P20)
+### Step 10. Cleanups (P19, P20) ✅ Done 10/31/2026 (items 1 and 3; item 2 skipped)
+Result: 36 tests pass (2 new). Restoring each old bug in a scratch copy made its test fail.
+1. **P19:** `AddedOn` is now `None` until the database stamps it (UTC), instead of the server's start time.
+2. **P20:** skipped. `get_test_data` measured at 8 ms, so vectorizing would only change how the random sample data is generated, for no real gain.
+3. **New finding:** the unknown-field warning in `__init__` could never fire, because `setattr` doesn't raise `AttributeError`, so a typo like `Observation(Prise=3.99)` was stored silently. Names are now checked against `Observation.columns`, and unknown ones are warned about and ignored.
+
+Left as it was: the empty `if __name__ == '__main__': pass` at the end of `cpi.py`, which is in the original and harmless.
 - Remove the stale `AddedOn` class attribute, or comment why it's there.
 - Optional: vectorize `get_test_data`.
 
 **Check:** tests pass.
+
+### Step 10b. Editable options file ✅ Done 10/31/2026 (user request)
+Categories, items, states and cities moved from `cpi.py` into `server/options.json`. `Observation.load_options()` checks it at import and names the first mistake.
+
+Decisions:
+- **D11:** JSON (user's choice).
+- **D12:** the file also holds sample prices, so sample data keeps working for new items.
+- **D13:** a city name may appear in only one state, because the graphs group by city name.
+- **D14:** the form starts on the first category and state in the file (Food / eggs / California / Los Angeles, matching the design).
+
+Related changes:
+- The `lru_cache` on the `available_*` lists is removed, since cached lists would go stale after a reload.
+- The server reloads when the file is saved (`extra_files`).
+- Tests use their own `test_options.json`.
+- Table dots are colored by item, and the palette has 8 colors.
+
+Result: 40 tests pass (4 new), and `/api/options` is identical to before. A scratch server with a duplicated city refused to start with a clear message.
+
+### Step 10c. Extra enhancements ✅ Done 10/31/2026 (user's picks)
+1. **The table loads only the newest 200 rows, plus the true total.**
+   - `/api/observations` now returns `{total, observations}` and takes an optional `?limit=N`.
+   - At 75,000 rows a reload went from 687 ms / 18 MB to 58 ms / 0.05 MB. The charts still use all the data.
+   - `clean_count` became the general `clean_whole_number`.
+2. **Every delete is logged** at INFO level: what was matched, requested vs. deleted, and the order. The logger is set to INFO, so this works even without debug mode.
+3. **Client tests:** Vitest 5.0.5 (`--save-exact`, dev dependency) and `npm test`. There are 8 tests for `format.js`, run in the America/Phoenix time zone. Two planted bugs each made a test fail.
+
+Result: 43 server tests and 8 client tests pass, and `test.db` was untouched.
+
+Open:
+- `npm audit` reports a high-severity advisory in **Vite 8.3.2**, the version the project shipped with (fixed in 8.3.5). On 10/31/2026 the user decided not to upgrade. Mention it in the README as known and left as shipped.
+- Not done (the user didn't pick it): limiting the Docker ports to localhost.
 
 ### Step 11. UI polish (bonus) ✅ Done 10/31/2026
 Built from `design_sample.png`, in the existing Vue components and plain CSS: no new framework, Plotly kept.
@@ -237,13 +274,26 @@ Built from `design_sample.png`, in the existing Vue components and plain CSS: no
 - **Differences from the design, on purpose:**
   - The design's scatter spreads points sideways (jitter). Not added, because it changes where data is plotted.
   - The design's mock data ("Energy", "Houston", "540 total") is replaced by the real data.
-- **Label changes:** the design's labels replace the README's names: "Add observation" for Save Observation, "Delete matching", "Delete up to n matches", "Most recent first", and a Graph type picker in the chart header.
+- **Label changes:** the design's labels replace the README's names: "Add observation" for Save Observation, "Delete matching", "Delete up to n matches", "Most recent first", and a Graph type picker in the chart header. The user confirmed on 10/31/2026 to keep these; mention the mapping in the README.
 - **Known limit:** on a phone, the legend position is chosen when the graph is drawn, so rotating the phone keeps it until the next redraw.
 - A consistent theme, spacing and fonts, with a layout that stacks on narrow screens.
 - Disable buttons while a request is running, show loading states, and clear success messages automatically.
 - Price input `type="number" step="0.01"` with the max from `/api/options`; delete count `type="number" min="1"`. These are a convenience only; the server remains the real check.
 
-### Step 12. Tests and docs
+### Step 12. Tests and docs ✅ Done 10/31/2026
+The root `README.md` now has:
+- an "If a port is already in use" section
+- an updated file tree
+- **Enhancements**, **Key decisions** (12 rows, one line each), **Notes for reviewers** and **Disclosures**
+
+The server and client READMEs were kept up to date step by step. At submission, re-check that no `.claude/` folder has appeared; if one has, include it and update Disclosures.
+
+Also done 10/31/2026:
+- Every date label on the scatter chart shows the year on a second line ("Jun 20" over "2022"). The user found "year only under the first label" lopsided.
+- Disclosures says `design_sample.png` was made with Claude Design. Notes say it was tested with Docker only; the user doesn't need Option B tested.
+- Card headings wrap their count onto a second line on phones.
+
+Original plan for this step:
 - API tests with Flask's `app.test_client()` on a temp database (set in `setUp`, after importing `app`; patch the `MAX_PRICE` constant):
   - A valid save returns 201; each invalid case returns 400 with a JSON error, including over `MAX_PRICE`.
   - Delete returns the right count.

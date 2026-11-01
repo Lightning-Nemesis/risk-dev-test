@@ -93,8 +93,10 @@ function drawPricesOverTime(series) {
   }))
   const layout = {
     ...baseLayout,
-    // Up to 12 date labels: every day across the sample data's 10 days, fewer over longer ranges or narrow screens
-    xaxis: { ...categoryAxis, tickformat: '%b %-d', nticks: isNarrow() ? 5 : 12 },
+    // Every date label shows the day and, on a second line, the year ("Jun 20" over "2022"), so all labels look alike
+    // and stay narrow enough not to tilt. Up to 12 labels: every day across the sample data's 10 days, fewer over
+    // longer ranges or narrow screens
+    xaxis: { ...categoryAxis, tickformat: '%b %-d<br>%Y', nticks: isNarrow() ? 5 : 12 },
     yaxis: priceAxis,
     legend: legend('Item'),
   }
