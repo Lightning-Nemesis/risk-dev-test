@@ -167,7 +167,6 @@ Then list your enhancements in the **Enhancements** section below, zip the proje
 - Tested with Docker. Run the tests with `docker compose exec server python -m unittest` and `docker compose exec client npm test`.
 - "Add observation" and "Delete matching" are the task's Save Observation and Delete Matching Observations buttons.
 - `test.db` holds the original sample data, cleaned by `migrate.py`.
-- Vite 8.3.2, as shipped, has a known dev-server advisory (fixed in 8.3.5); it's left as is.
 - Next steps I'd consider: warnings for unusual prices, and logins, so the delete log records who deleted.
 
 ## Disclosures
