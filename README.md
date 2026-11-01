@@ -170,7 +170,6 @@ Then list your enhancements in the **Enhancements** section below, zip the proje
 ## Notes for reviewers
 
 - Tested with Docker. Run the tests with `docker compose exec server python -m unittest` and `docker compose exec client npm test`.
-- "Add observation" and "Delete matching" are the task's Save Observation and Delete Matching Observations buttons.
 - `test.db` holds the original sample data, cleaned by `migrate.py`.
 - Next steps I'd consider: warnings for unusual prices, and logins, so the delete log records who deleted.
 
