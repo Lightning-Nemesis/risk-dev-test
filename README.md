@@ -82,10 +82,13 @@ risk-dev-test/
 │   ├── migrate.py       one-off clean-up of the existing rows
 │   ├── test_*.py        unit tests (python -m unittest)
 │   └── test.db          SQLite database with sample data
-└── client/              Vue 3 front end (JavaScript)
-    ├── .env             client settings
-    ├── vite.config.js   dev server and /api forwarding
-    └── src/             App.vue, api.js, format.js, theme.js, components/, assets/, format.test.js (npm test)
+├── client/              Vue 3 front end (JavaScript)
+│   ├── .env             client settings
+│   ├── vite.config.js   dev server and /api forwarding
+│   └── src/             App.vue, api.js, format.js, theme.js, components/, assets/, format.test.js (npm test)
+├── backup_db/
+│   └── test.db          the original database, as shared with the assignment (before migrate.py)
+└── screenshots/         the Claude Design mock-up (design_sample.png) and the finished app (final_app.png)
 ```
 
 ## Adding categories, items, states and cities
@@ -142,7 +145,9 @@ Then list your enhancements in the **Enhancements** section below, zip the proje
 
 ## Enhancements
 
-- **Design:** rebuilt from a Claude Design mock-up (`design_sample.png`), charts included, and it works on phones.
+![The finished app](screenshots/final_app.png)
+
+- **Design:** rebuilt from a Claude Design mock-up (`screenshots/design_sample.png`), charts included, and it works on phones.
 - **Validation:** the server checks every field, reports all problems at once, and keeps Item and City consistent with Category and State.
 - **Formatting:** prices in the `VITE_CURRENCY` currency, dates like "Jun 29, 2022", and times in the viewer's time zone.
 - **Usability:** linked drop-downs, messages under each field, a confirmation before deleting, a shortcut to the latest date with data, and "Load more" in the table.
@@ -171,4 +176,4 @@ Then list your enhancements in the **Enhancements** section below, zip the proje
 
 ## Disclosures
 
-I used **Claude Code** to plan, build and test this project (its guidelines are in `CLAUDE.md`), and **Claude Design** to create the page design (`design_sample.png`).
+I used **Claude Code** to plan, build and test this project (its guidelines are in `CLAUDE.md`), and **Claude Design** to create the page design (`screenshots/design_sample.png`).
