@@ -154,7 +154,7 @@ Then list your enhancements in the **Enhancements** section below, zip the proje
 - **Safety:** parameterized SQL, guards against deleting everything by mistake, error messages that hide internal details, and a log of every delete.
 - **Data clean-up:** `migrate.py` gave the existing rows one date format, prices rounded to the cent, and the correct spelling of Los Angeles.
 - **Bugs fixed:** a blank Item drop-down, tests that wiped `test.db`, dates stored in two formats, a stale `AddedOn`, a typo warning that could never fire, and dates shown a day early in the Americas.
-- **Tests:** 43 server tests and 8 client tests, several confirmed by deliberately breaking the code.
+- **Tests:** 44 server tests and 8 client tests, several confirmed by deliberately breaking the code.
 
 ## Key decisions
 

@@ -92,11 +92,15 @@ class TestListObservations(TempDatabaseMixin, unittest.TestCase):
         self.assertEqual([row['Price'] for row in data['observations']], [2.22, 1.11])
 
     def test_rejects_an_invalid_limit(self):
-        for limit in ['0', '-1', '1.5', 'abc', '']:
+        for limit in ['0', '-1', '1.5', 'abc', '', str(2**63)]:  # 2**63 is one more than SQLite's largest integer
             with self.subTest(limit=limit):
                 response = self.client.get('/api/observations', query_string={'limit': limit})
                 self.assertEqual(response.status_code, 400)
                 self.assertIn('limit', response.get_json()['fields'])
+
+    def test_limit_can_be_as_large_as_sqlite_allows(self):
+        response = self.client.get('/api/observations', query_string={'limit': str(2**63 - 1)})
+        self.assertEqual(response.status_code, 200)
 
 
 class TestSaveObservation(TempDatabaseMixin, unittest.TestCase):
@@ -278,6 +282,7 @@ class TestDeleteObservations(TempDatabaseMixin, unittest.TestCase):
 
     def test_delete_rejects_invalid_values(self):
         invalid_values = [('count', '0'), ('count', '-1'), ('count', '1.5'), ('count', 'abc'), ('count', ''),
+                          ('count', str(2**63)),  # too big for SQLite
                           ('mostRecentFirst', 'yes'), ('Date', ''), ('City', 'San Francisco'), ('Price', 'abc')]
         for field, value in invalid_values:
             with self.subTest(field=field, value=value):

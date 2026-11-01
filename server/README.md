@@ -46,7 +46,7 @@ Saving and deleting check every field and return all problems at once (status 40
 - **Date:** a real date, at most one day ahead. The server runs on UTC, where it's already tomorrow for some users.
 - **Category and State:** one of the options. **Item and City:** must belong to them.
 - **Price:** above 0 and at most `MAX_PRICE`, rounded to the cent. Optional when deleting.
-- **`count` and `limit`:** whole numbers of 1 or more.
+- **`count` and `limit`:** whole numbers of 1 or more, up to 9,223,372,036,854,775,807, the largest number SQLite can store.
 
 Other errors come back as JSON too. An unexpected error returns a generic message, and its details go only to the server log.
 

@@ -28,6 +28,8 @@ cpi.db_file = os.path.join(SERVER_DIR, os.getenv('DATABASE_PATH', cpi.db_file))
 MAX_PRICE = float(os.getenv('MAX_PRICE', '10000'))
 # How far past the server's today a date may be. The server runs on UTC, where it's already tomorrow for some users
 FUTURE_DATE_SLACK = datetime.timedelta(days=1)
+# The largest whole number SQLite can store. A bigger ?limit or delete count would crash the query with a 500
+SQLITE_MAX_INTEGER = 2**63 - 1
 
 app = Flask(__name__)
 # Log INFO messages (such as the record of each delete) even when FLASK_DEBUG is off
@@ -141,13 +143,15 @@ def clean_price(text, errors):
 
 
 def clean_whole_number(value, errors, field, what):
-    """Parse a whole number of 1 or more, such as how many observations to delete."""
+    """Parse a whole number from 1 to SQLITE_MAX_INTEGER, such as how many observations to delete."""
     try:
         number = int(clean_text(value))
     except ValueError:
         number = 0
     if number < 1:
         errors[field] = f'Enter {what} as a whole number of 1 or more'
+    elif number > SQLITE_MAX_INTEGER:
+        errors[field] = f'Enter {what} as a whole number of at most {SQLITE_MAX_INTEGER:,}'
     return number
 
 
