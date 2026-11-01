@@ -1,0 +1,20 @@
+# Runs the server and the client together: docker compose up --build
+services:
+  server:
+    build: ./server
+    ports:
+      - "5001:5001"
+    volumes:
+      - ./server:/code # edit files on your machine; the server reloads inside the container
+
+  client:
+    build: ./client
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./client:/code
+      - /code/node_modules # keep the container's own node_modules
+    environment:
+      API_URL: http://server:5001 # inside Docker, the server is reached by its service name
+    depends_on:
+      - server

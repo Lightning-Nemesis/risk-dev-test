@@ -1,0 +1,106 @@
+/* Base styles for the app */
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  color: #1f2933;
+}
+
+.layout {
+  display: flex;
+  gap: 24px;
+  padding: 16px;
+}
+
+.panel {
+  flex: 1;
+  min-width: 0;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 420px;
+  margin-bottom: 24px;
+}
+
+label {
+  font-weight: 600;
+  margin-top: 6px;
+}
+
+.checkbox {
+  font-weight: normal;
+}
+
+input,
+select,
+button {
+  font: inherit;
+  padding: 6px 8px;
+}
+
+button {
+  align-self: flex-start;
+  margin-top: 8px;
+  cursor: pointer;
+}
+
+.error {
+  color: #b42318;
+}
+
+.success {
+  color: #067647;
+}
+
+.hint {
+  color: #667085;
+  font-size: 0.875rem;
+}
+
+/* Messages sit right under their field, so drop the paragraph's default margins */
+.form p {
+  margin: 0;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.chart {
+  width: 100%;
+  height: 450px; /* Plotly needs a fixed height when the chart is responsive */
+}
+
+.table-wrapper {
+  max-height: 400px;
+  overflow: auto;
+  margin-top: 16px;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+th,
+td {
+  border: 1px solid #d0d5dd;
+  padding: 4px 8px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+/* Numbers line up on the right, with equal-width digits, as in a financial report */
+.numeric {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+th {
+  position: sticky;
+  top: 0;
+  background: #f2f4f7;
+}
