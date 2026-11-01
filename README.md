@@ -169,7 +169,8 @@ Then list your enhancements in the **Enhancements** section below, zip the proje
 
 ## Notes for reviewers
 
-- Tested with Docker. Run the tests with `docker compose exec server python -m unittest` and `docker compose exec client npm test`.
+- built and tested everything with the provided Docker setup (Option A),
+- Run the tests with `docker compose exec server python -m unittest` and `docker compose exec client npm test`.
 - `test.db` holds the original sample data, cleaned by `migrate.py`.
 - Next steps I'd consider: warnings for unusual prices, and logins, so the delete log records who deleted.
 
