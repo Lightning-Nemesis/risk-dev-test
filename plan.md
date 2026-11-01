@@ -228,8 +228,17 @@ Result:
 
 **Check:** tests pass.
 
-### Step 11. UI polish (bonus)
-Style chosen 10/31/2026: clean corporate (light gray page, white cards, navy accent, Inter font, roomy spacing). Deferred until the features are done.
+### Step 11. UI polish (bonus) ✅ Done 10/31/2026
+Built from `design_sample.png`, in the existing Vue components and plain CSS: no new framework, Plotly kept.
+- **Colors:** sampled from the PNG (navy `#0c2236`, teal `#0f7f7c`, series gold/blue/teal) and stored as CSS variables.
+- **Charts:** Plotly styled to match: Inter, white background, light gridlines, `$` ticks from $0, "Jun 20" dates, legend colors, and dots at 55% opacity.
+- **Shared colors:** `theme.js` keeps one color per category or item in both the graph and the table dots.
+- **Checked** with headless Edge screenshots of: the default view, the bar chart, its empty state, validation, and a 390px phone width. No console errors. Dates don't shift from Honolulu to Tokyo.
+- **Differences from the design, on purpose:**
+  - The design's scatter spreads points sideways (jitter). Not added, because it changes where data is plotted.
+  - The design's mock data ("Energy", "Houston", "540 total") is replaced by the real data.
+- **Label changes:** the design's labels replace the README's names: "Add observation" for Save Observation, "Delete matching", "Delete up to n matches", "Most recent first", and a Graph type picker in the chart header.
+- **Known limit:** on a phone, the legend position is chosen when the graph is drawn, so rotating the phone keeps it until the next redraw.
 - A consistent theme, spacing and fonts, with a layout that stacks on narrow screens.
 - Disable buttons while a request is running, show loading states, and clear success messages automatically.
 - Price input `type="number" step="0.01"` with the max from `/api/options`; delete count `type="number" min="1"`. These are a convenience only; the server remains the real check.

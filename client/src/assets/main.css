@@ -1,96 +1,486 @@
-/* Base styles for the app */
+/* Design tokens: colors, type and shapes from the design (design_sample.png) */
+:root {
+  --navy: #0c2236;
+  --navy-line: #162b3e;
+  --teal: #0f7f7c;
+  --teal-dark: #0c6b68;
+  --teal-bright: #14a3a0;
+  --teal-light: #5fd0c8;
+  --danger: #a93a2c;
+  --danger-border: #ebcfcb;
+  --danger-tint: #fcf4f3;
+  --page: #f3f4f1;
+  --surface: #ffffff;
+  --surface-muted: #f5f6f3;
+  --field: #fbfbfa;
+  --border: #e6e8e7;
+  --field-border: #e3e6e9;
+  --row-border: #f0f1ed;
+  --text: #1a2633;
+  --text-body: #3b4754;
+  --text-muted: #6a7581;
+  --text-label: #5e6670;
+  --text-on-dark: #b3c2d1;
+  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-serif: 'Source Serif 4', Georgia, 'Times New Roman', serif;
+  --radius-card: 14px;
+  --radius-control: 8px;
+  --shadow-card: 0 1px 2px rgba(12, 34, 54, 0.04), 0 8px 24px rgba(12, 34, 54, 0.06);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
 body {
   margin: 0;
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  color: #1f2933;
+  background: var(--page);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
 }
 
+/* Page header: a dark band with the brand, title and summary. The cards below overlap its bottom edge */
+.hero {
+  background: var(--navy);
+  color: #fff;
+  padding-bottom: 53px;
+}
+
+.hero-inner,
 .layout {
-  display: flex;
-  gap: 24px;
-  padding: 16px;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 0 48px;
 }
 
-.panel {
-  flex: 1;
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 64px;
+  border-bottom: 1px solid var(--navy-line);
+  font-family: var(--font-serif);
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.brand-mark {
+  position: relative;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--teal-bright);
+}
+
+.brand-mark::after {
+  content: '';
+  position: absolute;
+  inset: 8px;
+  border-radius: 50%;
+  background: var(--navy);
+}
+
+.eyebrow {
+  margin: 28px 0 8px;
+  color: var(--teal-light);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.hero h1 {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: 32px;
+  font-weight: 500;
+  line-height: 1.15;
+}
+
+.subtitle {
+  margin: 12px 0 0;
+  color: var(--text-on-dark);
+  font-size: 15px;
+}
+
+/* Two columns: the form card on the left, the graph and table cards on the right */
+.layout {
+  display: grid;
+  grid-template-columns: minmax(300px, 374px) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+  margin-top: -33px;
+  padding-bottom: 48px;
+}
+
+.results {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
   min-width: 0;
 }
 
-.form {
+.alert {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: 12px 16px;
+  border: 1px solid var(--danger-border);
+  border-radius: var(--radius-control);
+  background: var(--danger-tint);
+  color: var(--danger);
+}
+
+/* Cards */
+.card {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+}
+
+/* The header wraps on narrow screens, putting the graph-type picker under the title instead of squeezing it */
+.card-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 20px 10px;
+}
+
+.card-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  white-space: nowrap;
+  color: var(--navy);
+  font-family: var(--font-serif);
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.card-count {
+  color: var(--text-muted);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+/* Form card: "1 Observation details" on white, "2 Choose an action" on a muted band below */
+.form-section {
+  padding: 20px;
+}
+
+.form-section .card-title {
+  margin-bottom: 16px;
+}
+
+.form-section--muted {
+  border-top: 1px solid var(--border);
+  background: var(--surface-muted);
+}
+
+.step {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--navy);
+  color: #fff;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.field-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px 12px;
+}
+
+.field {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  max-width: 420px;
-  margin-bottom: 24px;
+  min-width: 0;
 }
 
-label {
-  font-weight: 600;
-  margin-top: 6px;
+.field--full {
+  grid-column: 1 / -1;
 }
 
-.checkbox {
-  font-weight: normal;
+.field label {
+  color: var(--text-body);
+  font-size: 12px;
+  font-weight: 500;
 }
 
-input,
-select,
-button {
+.field-error {
+  margin: 0;
+  color: var(--danger);
+  font-size: 12px;
+}
+
+/* Inputs and drop-downs */
+.control {
+  width: 100%;
+  height: 38px;
+  padding: 0 12px;
+  border: 1px solid var(--field-border);
+  border-radius: var(--radius-control);
+  background: var(--field);
+  color: var(--text);
   font: inherit;
-  padding: 6px 8px;
+  font-size: 14px;
 }
 
-button {
-  align-self: flex-start;
-  margin-top: 8px;
+.control::placeholder,
+.prefixed input::placeholder {
+  color: var(--text-muted);
+}
+
+.control:focus,
+.prefixed:focus-within {
+  outline: none;
+  border-color: var(--teal);
+  box-shadow: 0 0 0 3px rgba(15, 127, 124, 0.15);
+}
+
+select.control {
+  appearance: none;
+  padding-right: 34px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none' stroke='%236a7681' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 4.5 6 7.5 9 4.5'/%3E%3C/svg%3E");
+  background-position: right 12px center;
+  background-repeat: no-repeat;
   cursor: pointer;
 }
 
-.error {
-  color: #b42318;
+.control--sm {
+  width: auto;
+  height: 34px;
 }
 
-.success {
-  color: #067647;
+.control[aria-invalid='true'],
+.prefixed.invalid {
+  border-color: var(--danger);
 }
 
-.hint {
-  color: #667085;
-  font-size: 0.875rem;
+/* The price box: the currency prefix and a borderless input, inside one control-styled box */
+.prefixed {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
-/* Messages sit right under their field, so drop the paragraph's default margins */
-.form p {
-  margin: 0;
+.prefixed input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  outline: none;
 }
 
-button:disabled {
+.prefix {
+  color: var(--text-muted);
+}
+
+/* Buttons */
+.action-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.btn {
+  height: 40px;
+  padding: 0 14px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+
+.btn-primary {
+  background: var(--teal);
+  color: #fff;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--teal-dark);
+}
+
+.btn-danger {
+  border-color: var(--danger-border);
+  background: var(--surface);
+  color: var(--danger);
+}
+
+.btn-danger:hover:not(:disabled) {
+  border-color: var(--danger);
+  background: var(--danger-tint);
+}
+
+.btn:focus-visible,
+.link-button:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+}
+
+.btn:disabled {
   cursor: not-allowed;
   opacity: 0.6;
 }
 
-.chart {
-  width: 100%;
-  height: 450px; /* Plotly needs a fixed height when the chart is responsive */
+.link-button {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--teal);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
 }
 
+/* "Delete up to [n] matches" and "Most recent first" */
+.delete-options {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 14px;
+  color: var(--text-body);
+  font-size: 13px;
+}
+
+.delete-count,
+.checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.control.count-input {
+  width: 54px;
+  height: 30px;
+  padding: 0 10px;
+  background: var(--surface);
+}
+
+.checkbox {
+  cursor: pointer;
+}
+
+.checkbox input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--teal);
+}
+
+/* Small text: hints and the outcome of the last action */
+.hint {
+  margin: 12px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.status {
+  margin: 12px 0 0;
+  font-size: 13px;
+}
+
+.success {
+  color: var(--teal-dark);
+}
+
+.error {
+  color: var(--danger);
+}
+
+/* Graph card */
+.chart-message {
+  margin: 4px 20px 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.chart-message.error {
+  color: var(--danger);
+}
+
+.chart {
+  height: 250px; /* Plotly needs a fixed height when the chart is responsive */
+  margin: 0 12px 12px;
+}
+
+/* Table card */
 .table-wrapper {
-  max-height: 400px;
+  max-height: 330px;
   overflow: auto;
-  margin-top: 16px;
 }
 
 table {
-  border-collapse: collapse;
   width: 100%;
+  border-collapse: collapse;
 }
 
 th,
 td {
-  border: 1px solid #d0d5dd;
-  padding: 4px 8px;
+  padding: 11px 12px;
   text-align: left;
   white-space: nowrap;
+}
+
+th:first-child,
+td:first-child {
+  padding-left: 20px;
+}
+
+th:last-child,
+td:last-child {
+  padding-right: 20px;
+}
+
+th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-muted);
+  color: var(--text-label);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+td {
+  border-bottom: 1px solid var(--row-border);
+  color: var(--text-body);
+  font-size: 13px;
+}
+
+tbody tr:hover {
+  background: #fafaf8;
 }
 
 /* Numbers line up on the right, with equal-width digits, as in a financial report */
@@ -99,8 +489,42 @@ td {
   font-variant-numeric: tabular-nums;
 }
 
-th {
-  position: sticky;
-  top: 0;
-  background: #f2f4f7;
+td.price {
+  color: var(--text);
+  font-weight: 600;
+}
+
+td.muted {
+  color: var(--text-muted);
+}
+
+.dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 8px;
+  border-radius: 50%;
+  vertical-align: 1px;
+}
+
+/* Narrow screens: one column, smaller margins */
+@media (max-width: 960px) {
+  .hero-inner,
+  .layout {
+    padding: 0 16px;
+  }
+
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+    padding-bottom: 24px;
+  }
+
+  .hero h1 {
+    font-size: 28px;
+  }
+
+  /* Taller, to make room for the legend above the plot */
+  .chart {
+    height: 320px;
+  }
 }

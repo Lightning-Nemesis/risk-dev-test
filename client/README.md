@@ -41,12 +41,13 @@ Install packages with `npm install --save-exact <package>`. This records the exa
 
 | File | Purpose |
 |---|---|
-| `index.html` | Page shell |
+| `index.html` | Page shell, and the Inter and Source Serif 4 fonts from Google Fonts (without internet, the page falls back to system fonts) |
 | `vite.config.js` | Dev server settings and the `/api` forwarding |
 | `src/main.js` | Starts the Vue app |
 | `src/App.vue` | Page layout; loads the data |
 | `src/api.js` | Requests to the Flask API |
-| `src/format.js` | How prices, dates and times are shown: currency from `VITE_CURRENCY`, dates as MM/DD/YYYY, Added On in the viewer's time zone |
+| `src/format.js` | How prices, dates and times are shown: currency from `VITE_CURRENCY`, dates as "Jun 29, 2022", Added On as "Jun 29, 12:47 PM" in the viewer's time zone |
+| `src/theme.js` | Series colors shared by the graph and the table, so each category and item keeps one color everywhere |
 | `src/components/` | `ObservationForm`, `ObservationGraph` and `ObservationTable` |
-| `src/assets/` | Styles |
+| `src/assets/` | Styles: the design's colors, fonts and shapes as CSS variables at the top of `main.css`, then the layout from `design_sample.png` |
 | `Dockerfile` | Container image for the client |

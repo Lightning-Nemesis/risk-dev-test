@@ -15,19 +15,19 @@ export const currencyPrefix = priceParts
   .map((part) => part.value)
   .join('')
 
-// "2022-06-29" -> "06/29/2022". This splits the text instead of using new Date(), which reads a date without a
-// time as midnight UTC, and so would show the day before anywhere in the Americas
+// "2022-06-29" -> "Jun 29, 2022". The date is built from its own year, month and day as UTC and also formatted as
+// UTC. new Date('2022-06-29') would be read as midnight UTC but shown in local time: the day before in the Americas
+const dateFormat = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' })
 export function formatDate(isoDate) {
   if (!isoDate) return ''
-  const [year, month, day] = isoDate.split('-')
-  return `${month}/${day}/${year}`
+  const [year, month, day] = isoDate.split('-').map(Number)
+  return dateFormat.format(Date.UTC(year, month - 1, day))
 }
 
-// "2022-06-29T19:47:11Z" (UTC) -> "06/29/2022, 12:47 PM" in the viewer's own time zone
+// "2022-06-29T19:47:11Z" (UTC) -> "Jun 29, 12:47 PM" in the viewer's own time zone
 const dateTimeFormat = new Intl.DateTimeFormat('en-US', {
-  year: 'numeric',
-  month: '2-digit',
-  day: '2-digit',
+  month: 'short',
+  day: 'numeric',
   hour: 'numeric',
   minute: '2-digit',
 })

@@ -42,16 +42,21 @@ onMounted(async () => {
 </script>
 
 <template>
-  <main class="layout">
-    <section class="panel">
+  <header class="hero">
+    <div class="hero-inner">
+      <div class="brand"><span class="brand-mark" aria-hidden="true"></span>Beneficient</div>
+      <p class="eyebrow">Data entry</p>
       <h1>{{ title }}</h1>
-      <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
-      <ObservationForm v-model:date="selectedDate" :options="options" @changed="reloadObservations" />
-    </section>
+      <p class="subtitle">Record prices as you observe them and see how they move across items, states and cities.</p>
+    </div>
+  </header>
 
-    <section class="panel">
+  <main class="layout">
+    <p v-if="errorMessage" class="alert" role="alert">{{ errorMessage }}</p>
+    <ObservationForm v-model:date="selectedDate" :options="options" @changed="reloadObservations" />
+    <div class="results">
       <ObservationGraph v-model:date="selectedDate" :observations="observations" />
-      <ObservationTable :observations="observations" />
-    </section>
+      <ObservationTable :observations="observations" :categories="options.categories" />
+    </div>
   </main>
 </template>

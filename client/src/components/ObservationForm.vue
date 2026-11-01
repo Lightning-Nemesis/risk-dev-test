@@ -1,7 +1,7 @@
 <script setup>
 import { computed, reactive, watch } from 'vue'
 import { createObservation, deleteObservations } from '../api.js'
-import { formatDate, formatPrice } from '../format.js'
+import { currencyPrefix, formatDate, formatPrice } from '../format.js'
 
 const props = defineProps({
   options: { type: Object, required: true },
@@ -42,6 +42,8 @@ const deleteStatus = reactive({ busy: false, message: '', error: '' })
 const saveGeneralError = computed(() => (Object.keys(saveStatus.fieldErrors).length ? '' : saveStatus.error))
 
 async function saveObservation() {
+  // Both actions report under the same buttons, so each one clears the other's last message
+  Object.assign(deleteStatus, { message: '', error: '' })
   Object.assign(saveStatus, { busy: true, message: '', error: '', fieldErrors: {} })
   try {
     const saved = await createObservation({ ...form, Date: date.value })
@@ -66,6 +68,7 @@ async function deleteMatching() {
   if (/^\s*\d+\s*$/.test(count) && !window.confirm(`Delete up to ${count} matching observations, ${order}?\n\n${matching}`)) {
     return
   }
+  Object.assign(saveStatus, { message: '', error: '', fieldErrors: {} })
   Object.assign(deleteStatus, { busy: true, message: '', error: '' })
   try {
     const { deleted, requested } = await deleteObservations({ ...form, Date: date.value, count, mostRecentFirst })
@@ -82,65 +85,114 @@ async function deleteMatching() {
 </script>
 
 <template>
-  <!-- "Save Observation" submits this form; .prevent stops the page from reloading. The server checks every field -->
-  <form class="form" @submit.prevent="saveObservation">
-    <label for="date-input">Date</label>
-    <input id="date-input" v-model="date" type="date" :aria-invalid="!!saveStatus.fieldErrors.Date" />
-    <p v-if="saveStatus.fieldErrors.Date" class="error">{{ saveStatus.fieldErrors.Date }}</p>
+  <div class="card">
+    <!-- The fields. "Add observation" below submits this form through its form="observation-form" attribute;
+         .prevent stops the page from reloading. The server checks every field -->
+    <form id="observation-form" class="form-section" @submit.prevent="saveObservation">
+      <h2 class="card-title"><span class="step">1</span>Observation details</h2>
+      <div class="field-grid">
+        <div class="field">
+          <label for="date-input">Date</label>
+          <input
+            id="date-input"
+            v-model="date"
+            class="control"
+            type="date"
+            :aria-invalid="!!saveStatus.fieldErrors.Date"
+          />
+          <p v-if="saveStatus.fieldErrors.Date" class="field-error">{{ saveStatus.fieldErrors.Date }}</p>
+        </div>
 
-    <label for="category-input">Category</label>
-    <select id="category-input" v-model="form.Category" :aria-invalid="!!saveStatus.fieldErrors.Category">
-      <option v-for="category in options.categories" :key="category" :value="category">{{ category }}</option>
-    </select>
-    <p v-if="saveStatus.fieldErrors.Category" class="error">{{ saveStatus.fieldErrors.Category }}</p>
+        <div class="field">
+          <label for="price-input">Price</label>
+          <div class="control prefixed" :class="{ invalid: saveStatus.fieldErrors.Price }">
+            <span class="prefix" aria-hidden="true">{{ currencyPrefix.trim() }}</span>
+            <input
+              id="price-input"
+              v-model="form.Price"
+              type="text"
+              inputmode="decimal"
+              placeholder="3.99"
+              :aria-invalid="!!saveStatus.fieldErrors.Price"
+            />
+          </div>
+          <p v-if="saveStatus.fieldErrors.Price" class="field-error">{{ saveStatus.fieldErrors.Price }}</p>
+        </div>
 
-    <label for="item-input">Item</label>
-    <select id="item-input" v-model="form.Item" :aria-invalid="!!saveStatus.fieldErrors.Item">
-      <option v-for="item in itemsInCategory" :key="item" :value="item">{{ item }}</option>
-    </select>
-    <p v-if="saveStatus.fieldErrors.Item" class="error">{{ saveStatus.fieldErrors.Item }}</p>
+        <div class="field field--full">
+          <label for="category-input">Category</label>
+          <select
+            id="category-input"
+            v-model="form.Category"
+            class="control"
+            :aria-invalid="!!saveStatus.fieldErrors.Category"
+          >
+            <option v-for="category in options.categories" :key="category" :value="category">{{ category }}</option>
+          </select>
+          <p v-if="saveStatus.fieldErrors.Category" class="field-error">{{ saveStatus.fieldErrors.Category }}</p>
+        </div>
 
-    <label for="price-input">Price</label>
-    <input
-      id="price-input"
-      v-model="form.Price"
-      type="text"
-      inputmode="decimal"
-      placeholder="e.g. 3.99"
-      :aria-invalid="!!saveStatus.fieldErrors.Price"
-    />
-    <p v-if="saveStatus.fieldErrors.Price" class="error">{{ saveStatus.fieldErrors.Price }}</p>
+        <div class="field field--full">
+          <label for="item-input">Item</label>
+          <select id="item-input" v-model="form.Item" class="control" :aria-invalid="!!saveStatus.fieldErrors.Item">
+            <option v-for="item in itemsInCategory" :key="item" :value="item">{{ item }}</option>
+          </select>
+          <p v-if="saveStatus.fieldErrors.Item" class="field-error">{{ saveStatus.fieldErrors.Item }}</p>
+        </div>
 
-    <label for="state-input">State</label>
-    <select id="state-input" v-model="form.State" :aria-invalid="!!saveStatus.fieldErrors.State">
-      <option v-for="state in options.states" :key="state" :value="state">{{ state }}</option>
-    </select>
-    <p v-if="saveStatus.fieldErrors.State" class="error">{{ saveStatus.fieldErrors.State }}</p>
+        <div class="field">
+          <label for="state-input">State</label>
+          <select id="state-input" v-model="form.State" class="control" :aria-invalid="!!saveStatus.fieldErrors.State">
+            <option v-for="state in options.states" :key="state" :value="state">{{ state }}</option>
+          </select>
+          <p v-if="saveStatus.fieldErrors.State" class="field-error">{{ saveStatus.fieldErrors.State }}</p>
+        </div>
 
-    <label for="city-input">City</label>
-    <select id="city-input" v-model="form.City" :aria-invalid="!!saveStatus.fieldErrors.City">
-      <option v-for="city in citiesInState" :key="city" :value="city">{{ city }}</option>
-    </select>
-    <p v-if="saveStatus.fieldErrors.City" class="error">{{ saveStatus.fieldErrors.City }}</p>
+        <div class="field">
+          <label for="city-input">City</label>
+          <select id="city-input" v-model="form.City" class="control" :aria-invalid="!!saveStatus.fieldErrors.City">
+            <option v-for="city in citiesInState" :key="city" :value="city">{{ city }}</option>
+          </select>
+          <p v-if="saveStatus.fieldErrors.City" class="field-error">{{ saveStatus.fieldErrors.City }}</p>
+        </div>
+      </div>
+    </form>
 
-    <button type="submit" :disabled="saveStatus.busy">{{ saveStatus.busy ? 'Saving…' : 'Save Observation' }}</button>
-    <p v-if="saveStatus.message" class="success">{{ saveStatus.message }}</p>
-    <p v-if="saveGeneralError" class="error">{{ saveGeneralError }}</p>
-  </form>
+    <!-- The actions: save the observation above, or delete observations matching it -->
+    <div class="form-section form-section--muted">
+      <h2 class="card-title"><span class="step">2</span>Choose an action</h2>
+      <div class="action-buttons">
+        <button type="submit" form="observation-form" class="btn btn-primary" :disabled="saveStatus.busy">
+          {{ saveStatus.busy ? 'Adding…' : 'Add observation' }}
+        </button>
+        <button type="button" class="btn btn-danger" :disabled="deleteStatus.busy" @click="deleteMatching">
+          {{ deleteStatus.busy ? 'Deleting…' : 'Delete matching' }}
+        </button>
+      </div>
 
-  <!-- Deletes observations matching the form above -->
-  <div class="form">
-    <label for="delete-count">Number of Matching Observations to delete</label>
-    <input id="delete-count" v-model="deleteSettings.count" type="text" inputmode="numeric" />
-    <p class="hint">Matches the Date, Category, Item, State and City above, and the Price if one is entered.</p>
+      <div class="delete-options">
+        <span class="delete-count">
+          <label for="delete-count">Delete up to</label>
+          <input
+            id="delete-count"
+            v-model="deleteSettings.count"
+            class="control count-input"
+            type="text"
+            inputmode="numeric"
+          />
+          <span>matches</span>
+        </span>
+        <label class="checkbox">
+          <input v-model="deleteSettings.mostRecentFirst" type="checkbox" />
+          Most recent first
+        </label>
+      </div>
+      <p class="hint">Delete matches Date, Category, Item, State and City, plus Price if one is entered.</p>
 
-    <label class="checkbox">
-      <input v-model="deleteSettings.mostRecentFirst" type="checkbox" />
-      Delete Most Recent First?
-    </label>
-
-    <button type="button" :disabled="deleteStatus.busy" @click="deleteMatching">Delete Matching Observations</button>
-    <p v-if="deleteStatus.message" class="success">{{ deleteStatus.message }}</p>
-    <p v-if="deleteStatus.error" class="error">{{ deleteStatus.error }}</p>
+      <p v-if="saveStatus.message" class="status success" role="status">{{ saveStatus.message }}</p>
+      <p v-if="saveGeneralError" class="status error" role="alert">{{ saveGeneralError }}</p>
+      <p v-if="deleteStatus.message" class="status success" role="status">{{ deleteStatus.message }}</p>
+      <p v-if="deleteStatus.error" class="status error" role="alert">{{ deleteStatus.error }}</p>
+    </div>
   </div>
 </template>

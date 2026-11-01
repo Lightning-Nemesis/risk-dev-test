@@ -1,8 +1,9 @@
 <script setup>
-import { onBeforeUnmount, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import Plotly from 'plotly.js-dist-min'
 import { getAveragePriceByCity, getPricesOverTime } from '../api.js'
 import { currencyPrefix, formatDate, formatPrice } from '../format.js'
+import { SERIES_COLORS } from '../theme.js'
 
 const props = defineProps({
   observations: { type: Array, required: true },
@@ -14,6 +15,7 @@ const PRICES_OVER_TIME = 'Item Prices Over Time'
 const AVERAGE_BY_CITY = 'Average Item Price by City'
 const graphTypes = [PRICES_OVER_TIME, AVERAGE_BY_CITY]
 const graphType = ref(graphTypes[0])
+const title = computed(() => (graphType.value === PRICES_OVER_TIME ? 'Item prices over time' : 'Average item price by city'))
 const chart = ref(null)
 const errorMessage = ref('')
 // Set when the bar chart has no bars: { date, latestDate }, where date is '' if the Date field is empty
@@ -26,27 +28,50 @@ const SINGLE_OBSERVATION_SIZEREF = 1 / 18
 // Largest dot radius in px. If a count would go past it, every dot shrinks by the same factor, keeping proportions
 const MAX_DOT_RADIUS = 20
 
-// Same look as the original Dash app, which drew px.scatter(df, x='Date', y='Price', color='Item')
-// with Plotly Express's default "plotly" template
-const axisStyle = {
-  gridcolor: 'white',
-  linecolor: 'white',
-  zerolinecolor: 'white',
-  zerolinewidth: 2,
-  ticks: '',
-  automargin: true,
-}
+// Chart styling from the page design: Inter text in the page's grays, a white background with light horizontal
+// gridlines, and the same series colors as the table
+const FONT_FAMILY = "Inter, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif"
 const baseLayout = {
-  colorway: ['#636efa', '#EF553B', '#00cc96', '#ab63fa', '#FFA15A', '#19d3f3', '#FF6692', '#B6E880', '#FF97FF', '#FECB52'],
-  plot_bgcolor: '#E5ECF6',
-  paper_bgcolor: 'white',
-  font: { color: '#2a3f5f' },
+  colorway: SERIES_COLORS,
+  font: { family: FONT_FAMILY, size: 12, color: '#5e6670' },
+  paper_bgcolor: '#ffffff',
+  plot_bgcolor: '#ffffff',
   hovermode: 'closest',
-  hoverlabel: { align: 'left' },
-  margin: { t: 60 },
+  hoverlabel: {
+    align: 'left',
+    bgcolor: '#ffffff',
+    bordercolor: '#e3e6e9',
+    font: { family: FONT_FAMILY, size: 12, color: '#1a2633' },
+  },
+  margin: { t: 8, r: 8, b: 8, l: 8 }, // automargin grows these to fit the labels
 }
-// Price axes show the same currency as the table, e.g. "$10", with commas for thousands
-const priceAxisFormat = { tickprefix: currencyPrefix, tickformat: ',' }
+const axisStyle = { automargin: true, ticks: '', zeroline: false, showline: false, gridcolor: '#eff0eb' }
+// The bottom axis (dates or items): no vertical gridlines, just a thin baseline
+const categoryAxis = { ...axisStyle, showgrid: false, showline: true, linecolor: '#e3e5e0' }
+// Price axes start at zero and show the same currency as the table, e.g. "$10", with commas for thousands.
+// Up to 8 labels, so the sample prices get one every $10 as in the design
+const priceAxis = { ...axisStyle, rangemode: 'tozero', tickprefix: currencyPrefix, tickformat: ',', nticks: 8 }
+const plotConfig = { responsive: true, displaylogo: false }
+
+// Below this chart width (e.g. on a phone) the legend moves above the plot and the date axis shows fewer labels,
+// so the plot keeps the full width. It's decided each time the graph is drawn
+const NARROW_CHART_WIDTH = 560
+function isNarrow() {
+  return chart.value.clientWidth < NARROW_CHART_WIDTH
+}
+
+// Legend titled like the design ("Item", "City"), with one symbol size for every entry: at the top right, or in a
+// row above the plot on narrow screens
+function legend(text) {
+  const style = {
+    title: { text, font: { color: '#626a73' } },
+    font: { color: '#3b4754' },
+    bgcolor: 'rgba(0, 0, 0, 0)',
+    itemsizing: 'constant',
+    tracegroupgap: 0,
+  }
+  return isNarrow() ? { ...style, orientation: 'h', x: 0, xanchor: 'left', y: 1.02, yanchor: 'bottom' } : style
+}
 
 function drawPricesOverTime(series) {
   // One scatter trace per item, so each item gets its own color. The server already grouped and counted the points
@@ -57,22 +82,23 @@ function drawPricesOverTime(series) {
     mode: 'markers',
     name: item,
     legendgroup: item,
-    marker: { symbol: 'circle', size: counts, sizemode: 'area', sizeref },
+    // Semi-transparent, so overlapping dots stay visible and darken where they stack
+    marker: { symbol: 'circle', size: counts, sizemode: 'area', sizeref, opacity: 0.55 },
     // Plotly can't call formatPrice, so each point carries its formatted price (and count) for the hover text
     customdata: prices.map((price, i) => [formatPrice(price), counts[i]]),
     hovertemplate:
-      `Item=${item}<br>Date=%{x|%m/%d/%Y}<br>Price=%{customdata[0]}<br>Observations=%{customdata[1]}<extra></extra>`,
+      `<b>${item}</b><br>%{x|%b %-d, %Y}<br>Price: %{customdata[0]}<br>Observations: %{customdata[1]}<extra></extra>`,
     x: dates,
     y: prices,
   }))
   const layout = {
     ...baseLayout,
-    xaxis: { ...axisStyle, title: { text: 'Date', standoff: 15 }, tickformat: '%m/%d/%Y' },
-    yaxis: { ...axisStyle, ...priceAxisFormat, title: { text: 'Price', standoff: 15 } },
-    // Keep the legend's symbols one size, while the points on the graph vary with their counts
-    legend: { title: { text: 'Item' }, tracegroupgap: 0, itemsizing: 'constant' },
+    // Up to 12 date labels: every day across the sample data's 10 days, fewer over longer ranges or narrow screens
+    xaxis: { ...categoryAxis, tickformat: '%b %-d', nticks: isNarrow() ? 5 : 12 },
+    yaxis: priceAxis,
+    legend: legend('Item'),
   }
-  Plotly.react(chart.value, traces, layout, { responsive: true })
+  Plotly.react(chart.value, traces, layout, plotConfig)
 }
 
 function drawAverageByCity(data) {
@@ -88,16 +114,19 @@ function drawAverageByCity(data) {
     y: averages,
     customdata: averages.map((average, i) => [formatPrice(average), counts[i]]),
     hovertemplate:
-      `City=${city}<br>Item=%{x}<br>Average price=%{customdata[0]}<br>Observations=%{customdata[1]}<extra></extra>`,
+      `<b>${city}</b><br>%{x}<br>Average price: %{customdata[0]}<br>Observations: %{customdata[1]}<extra></extra>`,
   }))
   const layout = {
     ...baseLayout,
     barmode: 'group',
-    xaxis: { ...axisStyle, title: { text: 'Item', standoff: 15 } },
-    yaxis: { ...axisStyle, ...priceAxisFormat, title: { text: 'Average price', standoff: 15 } },
-    legend: { title: { text: 'City' } },
+    bargap: 0.3,
+    bargroupgap: 0.08,
+    barcornerradius: 3,
+    xaxis: categoryAxis,
+    yaxis: priceAxis,
+    legend: legend('City'),
   }
-  Plotly.react(chart.value, traces, layout, { responsive: true })
+  Plotly.react(chart.value, traces, layout, plotConfig)
 }
 
 // Numbers each request, so only the newest one draws: the Date changes with every edit, and an older, slower
@@ -114,6 +143,8 @@ async function showGraph() {
     } else if (date.value) {
       data = await getAveragePriceByCity(date.value)
     }
+    // Wait for the page's web fonts, so Plotly sizes its labels and legend in Inter rather than a fallback font
+    await document.fonts.ready
     if (request !== latestRequest) return // a newer request was sent meanwhile, and it will draw instead
     errorMessage.value = ''
     if (showAverages) {
@@ -141,18 +172,22 @@ onBeforeUnmount(() => Plotly.purge(chart.value))
 </script>
 
 <template>
-  <label for="graph-type">Graph Type</label>
-  <select id="graph-type" v-model="graphType">
-    <option v-for="type in graphTypes" :key="type" :value="type">{{ type }}</option>
-  </select>
+  <section class="card">
+    <header class="card-header">
+      <h2 class="card-title">{{ title }}</h2>
+      <select v-model="graphType" class="control control--sm" aria-label="Graph type">
+        <option v-for="type in graphTypes" :key="type" :value="type">{{ type }}</option>
+      </select>
+    </header>
 
-  <p v-if="errorMessage" class="error">{{ errorMessage }}</p>
-  <p v-if="noData" class="hint">
-    {{ noData.date ? `No observations on ${formatDate(noData.date)}.` : 'Choose a date to see average prices by city.' }}
-    <template v-if="noData.latestDate">
-      The latest date with observations is {{ formatDate(noData.latestDate) }}.
-      <button type="button" @click="showLatestDate">Show {{ formatDate(noData.latestDate) }}</button>
-    </template>
-  </p>
-  <div ref="chart" class="chart"></div>
+    <p v-if="errorMessage" class="chart-message error" role="alert">{{ errorMessage }}</p>
+    <p v-if="noData" class="chart-message">
+      {{ noData.date ? `No observations on ${formatDate(noData.date)}.` : 'Choose a date to see average prices by city.' }}
+      <template v-if="noData.latestDate">
+        The latest date with observations is {{ formatDate(noData.latestDate) }}.
+        <button type="button" class="link-button" @click="showLatestDate">Show {{ formatDate(noData.latestDate) }}</button>
+      </template>
+    </p>
+    <div ref="chart" class="chart"></div>
+  </section>
 </template>
